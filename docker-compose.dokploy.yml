@@ -1,0 +1,124 @@
+services:
+  cache:
+    image: redis:4-alpine
+    container_name: fleetbase-cache
+    networks:
+      - dokploy-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  socket:
+    image: socketcluster/socketcluster:v17.4.0
+    networks:
+      - dokploy-network
+    ports:
+      - 8000
+    environment:
+      SOCKETCLUSTER_WORKERS: 10
+      SOCKETCLUSTER_BROKERS: 10
+
+  scheduler:
+    image: fleetbase/fleetbase-api:latest
+    networks:
+      - dokploy-network
+    command: ["go-crond", "--verbose", "root:./crontab"]
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      QUEUE_CONNECTION: redis
+      CACHE_DRIVER: redis
+      CACHE_PATH: /fleetbase/api/storage/framework/cache
+      CACHE_URL: ${REDIS_URL}
+      REDIS_URL: ${REDIS_URL}
+    depends_on:
+      - cache
+
+  queue:
+    image: fleetbase/fleetbase-api:latest
+    networks:
+      - dokploy-network
+    command: ["php", "artisan", "queue:work"]
+    healthcheck:
+      test: ["CMD", "php", "artisan", "queue:status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      QUEUE_CONNECTION: redis
+      CACHE_DRIVER: redis
+      CACHE_PATH: /fleetbase/api/storage/framework/cache
+      CACHE_URL: ${REDIS_URL}
+      REDIS_URL: ${REDIS_URL}
+    depends_on:
+      - cache
+
+  console:
+    networks:
+      - dokploy-network
+    env_file: .env
+    environment:
+      API_HOST: https://api.rapide.om
+      API_SECURE: ${API_SECURE}
+      SOCKETCLUSTER_PATH: ${SOCKETCLUSTER_PATH}
+      SOCKETCLUSTER_HOST: ${SOCKETCLUSTER_HOST}
+      SOCKETCLUSTER_SECURE: ${SOCKETCLUSTER_SECURE}
+      SOCKETCLUSTER_PORT: ${SOCKETCLUSTER_SECURE}
+    build:
+      context: .
+      dockerfile: console/Dockerfile
+      args:
+        API_HOST: https://api.rapide.om
+        ENVIRONMENT: production
+    ports:
+      - 4200
+
+  application:
+    networks:
+      - dokploy-network
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: app-release
+      args:
+        ENVIRONMENT: production
+        CONSOLE_HOST: ${CONSOLE_HOST}
+    env_file: .env
+    ports:
+      - 8000
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT}
+      APP_URL: ${APP_URL}
+      DATABASE_URL: ${DATABASE_URL}
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION}
+      CACHE_DRIVER: ${CACHE_DRIVER}
+      CACHE_PATH: ${CACHE_PATH}
+      CACHE_URL: ${REDIS_URL}
+      REDIS_URL: ${REDIS_URL}
+      SESSION_DOMAIN: ${SESSION_DOMAIN}
+      BROADCAST_DRIVER: ${BROADCAST_DRIVER}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME}
+      APP_NAME: ${APP_NAME}
+      APP_KEY: ${APP_KEY}
+      APP_DEBUG: ${APP_DEBUG}
+      CONSOLE_HOST: ${CONSOLE_HOST}
+      FRONTEND_HOSTS: ${FRONTEND_HOSTS}
+      LOG_CHANNEL: ${LOG_CHANNEL}
+      REGISTRY_HOST: ${REGISTRY_HOST}
+      REGISTRY_PREINSTALLED_EXTENSIONS: ${REGISTRY_PREINSTALLED_EXTENSIONS}
+      OSRM_HOST: ${OSRM_HOST}
+      SOCKETCLUSTER_PATH: ${SOCKETCLUSTER_PATH}
+      SOCKETCLUSTER_HOST: ${SOCKETCLUSTER_HOST}
+      SOCKETCLUSTER_SECURE: ${SOCKETCLUSTER_SECURE}
+      SOCKETCLUSTER_PORT: ${SOCKETCLUSTER_SECURE}
+    depends_on:
+      - cache
+      - queue
+
+networks:
+  dokploy-network:
+    external: true

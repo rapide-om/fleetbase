@@ -1,0 +1,12 @@
+{
+  "name": "rapide-monorepo",
+  "private": true,
+  "pnpm": {
+    "overrides": {
+      "@fleetbase/ember-core": "workspace:*",
+      "@fleetbase/ember-ui": "workspace:*",
+      "@fleetbase/fleetops-data": "workspace:*",
+      "ember-engines": "^0.9.0"
+    }
+  }
+}

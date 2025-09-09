@@ -1,0 +1,17 @@
+FROM node:18.15.0-alpine
+
+WORKDIR /console
+
+RUN npm install -g ember-cli pnpm
+RUN apk add --no-cache git openssh-client \
+  && mkdir -p -m 0600 ~/.ssh \
+  && ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+# Copy manifests first for caching
+COPY console/package.json console/pnpm-lock.yaml console/pnpm-workspace.yaml ./
+COPY packages/*/package.json ../packages/
+
+RUN pnpm install
+
+# Default command in dev mode is to run the Ember server
+CMD ["pnpm", "start"]

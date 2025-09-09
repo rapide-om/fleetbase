@@ -1,0 +1,8 @@
+<DriverFormPanel
+    @driver={{@model}}
+    @controller={{this}}
+    @onPressCancel={{this.transitionBack}}
+    @onAfterSave={{this.onAfterSave}}
+    @onViewDetails={{this.onViewDetails}}
+    @onLoad={{this.setOverlayContext}}
+/>
